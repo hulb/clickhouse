@@ -43,9 +43,7 @@ func (m Migrator) FullDataTypeOf(field *schema.Field) (expr clause.Expr) {
 	// Build DEFAULT clause after DataTypeOf() expression optionally
 	if field.HasDefaultValue && (field.DefaultValueInterface != nil || field.DefaultValue != "") {
 		if field.DefaultValueInterface != nil {
-			defaultStmt := &gorm.Statement{Vars: []interface{}{field.DefaultValueInterface}}
-			m.Dialector.BindVarTo(defaultStmt, defaultStmt, field.DefaultValueInterface)
-			expr.SQL += " DEFAULT " + m.Dialector.Explain(defaultStmt.SQL.String(), field.DefaultValueInterface)
+			expr.SQL += " DEFAULT " + m.Dialector.Explain("?", field.DefaultValueInterface)
 		} else if field.DefaultValue != "(-)" {
 			expr.SQL += " DEFAULT " + field.DefaultValue
 		}
@@ -147,7 +145,7 @@ func (m Migrator) CreateTable(models ...interface{}) error {
 
 				// Stringify index builder
 				// TODO (iqdf): support granularity
-				str := fmt.Sprintf("INDEX ? ? TYPE %s GRANULARITY %d", indexType, m.getIndexGranularityOption(index.Fields))
+				str := fmt.Sprintf("INDEX $1 $2 TYPE %s GRANULARITY %d", indexType, m.getIndexGranularityOption(index.Fields))
 				indexSlice = append(indexSlice, str)
 				args = append(args, clause.Expr{SQL: index.Name}, indexOptions)
 			}
@@ -184,7 +182,7 @@ func (m Migrator) HasTable(value interface{}) bool {
 	m.RunWithValue(value, func(stmt *gorm.Statement) error {
 		currentDatabase := m.DB.Migrator().CurrentDatabase()
 		return m.DB.Raw(
-			"SELECT count(*) FROM system.tables WHERE database = ? AND name = ? AND is_temporary = ?",
+			"SELECT count(*) FROM system.tables WHERE database = $1 AND name = $2 AND is_temporary = $3",
 			currentDatabase,
 			stmt.Table,
 			uint8(0)).Row().Scan(&count)
@@ -198,7 +196,7 @@ func (m Migrator) AddColumn(value interface{}, field string) error {
 	return m.RunWithValue(value, func(stmt *gorm.Statement) error {
 		if field := stmt.Schema.LookUpField(field); field != nil {
 			return m.DB.Exec(
-				"ALTER TABLE ? ADD COLUMN ? ?",
+				"ALTER TABLE ? ADD COLUMN IF NOT EXISTS ? ?",
 				clause.Table{Name: stmt.Table}, clause.Column{Name: field.DBName},
 				m.FullDataTypeOf(field),
 			).Error
@@ -213,7 +211,7 @@ func (m Migrator) DropColumn(value interface{}, name string) error {
 			name = field.DBName
 		}
 		return m.DB.Exec(
-			"ALTER TABLE ? DROP COLUMN ?",
+			"ALTER TABLE $1 DROP COLUMN $2",
 			clause.Table{Name: stmt.Table}, clause.Column{Name: name},
 		).Error
 	})
@@ -223,7 +221,7 @@ func (m Migrator) AlterColumn(value interface{}, field string) error {
 	return m.RunWithValue(value, func(stmt *gorm.Statement) error {
 		if field := stmt.Schema.LookUpField(field); field != nil {
 			return m.DB.Exec(
-				"ALTER TABLE ? MODIFY COLUMN ? ?",
+				"ALTER TABLE $1 MODIFY COLUMN $2 $3",
 				clause.Table{Name: stmt.Table},
 				clause.Column{Name: field.DBName},
 				m.FullDataTypeOf(field),
@@ -249,7 +247,7 @@ func (m Migrator) RenameColumn(value interface{}, oldName, newName string) error
 			}
 			if field != nil {
 				return m.DB.Exec(
-					"ALTER TABLE ? RENAME COLUMN ? TO ?",
+					"ALTER TABLE $1 RENAME COLUMN $2 TO $3",
 					clause.Table{Name: stmt.Table},
 					clause.Column{Name: oldName},
 					clause.Column{Name: newName},
@@ -274,7 +272,7 @@ func (m Migrator) HasColumn(value interface{}, field string) bool {
 		}
 
 		return m.DB.Raw(
-			"SELECT count(*) FROM system.columns WHERE database = ? AND table = ? AND name = ?",
+			"SELECT count(*) FROM system.columns WHERE database = $1 AND table = $2 AND name = $3",
 			currentDatabase, stmt.Table, name,
 		).Row().Scan(&count)
 	})
@@ -298,7 +296,7 @@ func (m Migrator) ColumnTypes(value interface{}) ([]gorm.ColumnType, error) {
 		var rawColumnTypes []*sql.ColumnType
 		rawColumnTypes, err = rows.ColumnTypes()
 
-		columnTypeSQL := "SELECT name, type, default_expression, comment, is_in_primary_key, character_octet_length, numeric_precision, numeric_precision_radix, numeric_scale, datetime_precision FROM system.columns WHERE database = ? AND table = ?"
+		columnTypeSQL := "SELECT name, type, default_expression, comment, is_in_primary_key, character_octet_length, numeric_precision, numeric_precision_radix, numeric_scale, datetime_precision FROM system.columns WHERE database = $1 AND table = $2"
 		columns, rowErr := m.DB.Raw(columnTypeSQL, m.CurrentDatabase(), stmt.Table).Rows()
 		if rowErr != nil {
 			return rowErr
@@ -378,7 +376,7 @@ func (m Migrator) CreateIndex(value interface{}, name string) error {
 
 			// NOTE: concept of UNIQUE | FULLTEXT | SPATIAL index
 			// is NOT supported in clickhouse
-			createIndexSQL := "ALTER TABLE ? ADD INDEX ? ? TYPE %s GRANULARITY %d"                             // TODO(iqdf): how to inject Granularity
+			createIndexSQL := "ALTER TABLE $1 ADD INDEX $2 $3 TYPE %s GRANULARITY %d"                          // TODO(iqdf): how to inject Granularity
 			createIndexSQL = fmt.Sprintf(createIndexSQL, indexType, m.getIndexGranularityOption(index.Fields)) // Granularity: 1 (default)
 			return m.DB.Exec(createIndexSQL, values...).Error
 		}
@@ -400,7 +398,7 @@ func (m Migrator) DropIndex(value interface{}, name string) error {
 				name = idx.Name
 			}
 		}
-		dropIndexSQL := "ALTER TABLE ? DROP INDEX ?"
+		dropIndexSQL := "ALTER TABLE $1 DROP INDEX $2"
 		return m.DB.Exec(dropIndexSQL,
 			clause.Table{Name: stmt.Table},
 			clause.Column{Name: name}).Error

@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"gorm.io/driver/clickhouse"
+	clickhouse "github.com/hulb/gorm-clickhouse-v2"
 	"gorm.io/gorm"
 )
 
@@ -15,7 +15,7 @@ var DB *gorm.DB
 func init() {
 	var (
 		err   error
-		dbDSN = "tcp://localhost:9942?database=gorm&username=gorm&password=gorm&read_timeout=10&write_timeout=20"
+		dbDSN = "clickhouse://gorm:gorm@localhost:9942/gorm?dial_timeout=200ms&max_execution_time=60"
 	)
 
 	if DB, err = gorm.Open(clickhouse.Open(dbDSN), &gorm.Config{}); err != nil {

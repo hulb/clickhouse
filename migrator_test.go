@@ -6,12 +6,12 @@ import (
 )
 
 type User struct {
-	ID        uint `gorm:"primaryKey"`
+	ID        uint64 `gorm:"primaryKey"`
 	Name      string
 	FirstName string
 	LastName  string
 	Age       int64
-	Active    bool
+	Active    uint8
 	Salary    float32
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -19,9 +19,9 @@ type User struct {
 
 func TestAutoMigrate(t *testing.T) {
 	type UserMigrateColumn struct {
-		ID           uint
+		ID           uint64
 		Name         string
-		IsAdmin      bool
+		IsAdmin      uint8
 		Birthday     time.Time `gorm:"precision:4"`
 		Debit        float64   `gorm:"precision:4"`
 		Note         string    `gorm:"size:10;comment:my note"`

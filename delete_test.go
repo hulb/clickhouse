@@ -8,7 +8,7 @@ import (
 )
 
 func TestDelete(t *testing.T) {
-	var user = User{ID: 2, Name: "delete", FirstName: "zhang", LastName: "jinzhu", Age: 18, Active: true, Salary: 8.8888}
+	var user = User{ID: 2, Name: "delete", FirstName: "zhang", LastName: "jinzhu", Age: 18, Active: 1, Salary: 8.8888}
 
 	if err := DB.Create(&user).Error; err != nil {
 		t.Fatalf("failed to create user, got error %v", err)

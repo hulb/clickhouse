@@ -8,7 +8,7 @@ import (
 )
 
 func TestUpdate(t *testing.T) {
-	var user = User{ID: 3, Name: "update", FirstName: "zhang", LastName: "jinzhu", Age: 18, Active: true, Salary: 8.8888}
+	var user = User{ID: 3, Name: "update", FirstName: "zhang", LastName: "jinzhu", Age: 18, Active: 1, Salary: 8.8888}
 
 	if err := DB.Create(&user).Error; err != nil {
 		t.Fatalf("failed to create user, got error %v", err)
@@ -37,7 +37,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestUpdateWithMap(t *testing.T) {
-	var user = User{ID: 33, Name: "update2", FirstName: "zhang", LastName: "jinzhu", Age: 18, Active: true, Salary: 8.8888}
+	var user = User{ID: 33, Name: "update2", FirstName: "zhang", LastName: "jinzhu", Age: 18, Active: 1, Salary: 8.8888}
 
 	if err := DB.Create(&user).Error; err != nil {
 		t.Fatalf("failed to create user, got error %v", err)
